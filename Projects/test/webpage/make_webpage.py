@@ -274,6 +274,9 @@ videos_camera_dynamic = []
 for f in os.listdir("./camera_dynamic")[:topk]:
     path = os.path.join("./camera_dynamic", f)
     videos_camera_dynamic.append({"type": "video", "content": path})
+for f in os.listdir("./davis_dynamic")[:topk]:
+    path = os.path.join("./davis_dynamic", f)
+    videos_camera_dynamic.append({"type": "video", "content": path})
 
 
 #Prepare Julien
