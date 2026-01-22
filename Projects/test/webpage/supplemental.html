@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Go-with-the-Track: Video Compositing and Motion Control with Point Tracking</title>
+    
+    <style>
+        html { scroll-padding-top: 100px; }
+        body {
+            font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-size: 14pt;
+            line-height: 1.6;
+            color: #333;
+            background-color: #ffffff;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            width: 98%;
+            max-width: 2400px; 
+            margin: 0 auto;
+            padding: 20px;
+        }
+        video {
+            width: 100%; 
+            height: auto;
+            display: block;
+            margin: 32px auto;
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            background: #000;
+        }
+        .video-row {
+            display: flex;
+            flex-wrap: wrap;
+            width: 100%;
+            gap: 16px;
+            margin: 32px 0px;
+            justify-content: center;
+        }
+        .ours-720p {
+            flex: 1;
+            min-width: 45%;
+            margin: 0;
+        }
+        .ab-tp { width: 100%; max-width: 100%; margin: 0 auto; }
+        h1, h2, h3 { text-align: center; color: #111; }
+        h1 { margin: 40px 0 12px 0; }
+        h2 { 
+            margin: 80px 0 24px 0; 
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+        h3 { margin: 50px 0 20px 0; }
+        p { text-align: justify; max-width: 1200px; margin-left: auto; margin-right: auto; }
+        ol { max-width: 1200px; margin-left: auto; margin-right: auto; }
+        .exp {
+            margin: 8px 0px 48px 0px;
+            font-style: italic;
+            text-align: center;
+            color: #555;
+            font-size: 1.1rem;
+        }
+        #toc {
+            position: sticky;
+            top: 0; left: 0; width: 100%;
+            background-color: #1a202c; color: white;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            padding: 14px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #toc ul {
+            list-style-type: none; padding: 0; margin: 0;
+            display: flex; flex-wrap: wrap; justify-content: center; gap: 12px;
+        }
+        #toc li { margin: 0; }
+        #toc a {
+            text-decoration: none; color: #fff;
+            font-size: 1.1rem; font-weight: 600;
+            padding: 8px 18px;
+            background-color: rgba(255,255,255,0.1);
+            border-radius: 6px; transition: all 0.2s ease;
+        }
+        #toc a:hover { background-color: #4a90e2; transform: translateY(-1px); }
+        #toc li.active a {
+            background-color: #4a90e2; color: white;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+    </style>
+    
+</head>
+<body>
+    <nav id="toc"></nav>
+    <div class="container">
+        <h1 style="margin-bottom: 12px">Go-with-the-Track: Video Compositing and Motion Control with Point Tracking</h1>
+        <p style="text-align: center; font-size: x-large; margin-top: 12px;">Anonymous SIGGRAPH submission &nbsp;|&nbsp; Paper ID 483</p>
+        <p>Go-with-the-Track unifies motion control and multi-reference conditioning within a single framework, using dense point tracks to guide spatiotemporal evolution. Our model enables the precise placement of elements that enter or exit the scene and achieves superior fidelity in applications ranging from complex motion transfer to dynamic camera control.</p>
+    
+<h2 id="">Applications</h2>
+<p>We show samples of some applications of TrackR2V: Motion Transfer, Mesh-based Stylization, Motion Transfer, and Camera Control.</p>
+<h3 id="">Motion Transfer</h3>
+<p>We extract tracking fields from source videos to transfer complex motion patterns to new subjects defined by reference images. This process preserves the visual identity of the reference while faithfully reproducing the target dynamics without requiring specific 3D reconstruction or pose estimation.</p>
+<video><source src="./videos_motion_transfer/2865340-uhd_3840_2160_30fps.mp4" type="video/mp4" /></video>
+<video><source src="./videos_motion_transfer/4919748-uhd_4096_2160_25fps.mp4" type="video/mp4" /></video>
+<video><source src="./videos_motion_transfer/7520246-hd_1920_1080_24fps.mp4" type="video/mp4" /></video>
+<video><source src="./videos_motion_transfer/7678714-uhd_3840_2160_25fps.mp4" type="video/mp4" /></video>
+<video><source src="./videos_motion_transfer/9489172-uhd_4096_2160_25fps.mp4" type="video/mp4" /></video>
+<video><source src="./videos_motion_transfer/9631907-uhd_4096_2160_24fps.mp4" type="video/mp4" /></video>
+<h3 id="">Results in 720p</h3>
+<p>By fine-tuning our 14B parameter model on 65K high-quality real-world videos, we successfully scaled our generation capabilities to 720P. These results demonstrate that TrackR2V maintains precise motion controllability and high visual fidelity even at significantly higher resolutions.</p>
+<video><source src="./720P_motion_transfer/2865340-uhd_3840_2160_30fps.mp4" type="video/mp4" /></video>
+<video><source src="./720P_motion_transfer/7678714-uhd_3840_2160_25fps.mp4" type="video/mp4" /></video>
+<video><source src="./720P_motion_transfer/9489172-uhd_4096_2160_25fps.mp4" type="video/mp4" /></video>
+<video><source src="./720P_motion_transfer/9631907-uhd_4096_2160_24fps.mp4" type="video/mp4" /></video>
+<h3 id="">Comparison to baselines</h3>
+<p>Compared to state-of-the-art methods like ATI, DiffusionAsShader, and Tora, TrackR2V demonstrates superior structural integrity and motion following. Our model significantly reduces artifacts and better preserves subject identity, particularly in challenging scenarios involving occlusions, as validated by user studies.</p>
+<video><source src="./baselines/2795749-uhd_3840_2160_25fps_1.mp4" type="video/mp4" /></video>
+<video><source src="./baselines/2865340-uhd_3840_2160_30fps_0.mp4" type="video/mp4" /></video>
+<video><source src="./baselines/2865340-uhd_3840_2160_30fps_2.mp4" type="video/mp4" /></video>
+<video><source src="./baselines/2865340-uhd_3840_2160_30fps_5.mp4" type="video/mp4" /></video>
+<video><source src="./baselines/4919748-uhd_4096_2160_25fps_0.mp4" type="video/mp4" /></video>
+<video><source src="./baselines/4919748-uhd_4096_2160_25fps_1.mp4" type="video/mp4" /></video>
+<video><source src="./baselines/4919748-uhd_4096_2160_25fps_2.mp4" type="video/mp4" /></video>
+<video><source src="./baselines/4919748-uhd_4096_2160_25fps_5.mp4" type="video/mp4" /></video>
+<video><source src="./baselines/7520246-hd_1920_1080_24fps_3.mp4" type="video/mp4" /></video>
+<video><source src="./baselines/7678714-uhd_3840_2160_25fps_0.mp4" type="video/mp4" /></video>
+<video><source src="./baselines/7678714-uhd_3840_2160_25fps_2.mp4" type="video/mp4" /></video>
+<video><source src="./baselines/9489172-uhd_4096_2160_25fps_0.mp4" type="video/mp4" /></video>
+<video><source src="./baselines/9489172-uhd_4096_2160_25fps_1.mp4" type="video/mp4" /></video>
+<video><source src="./baselines/9489172-uhd_4096_2160_25fps_3.mp4" type="video/mp4" /></video>
+<video><source src="./baselines/9631907-uhd_4096_2160_24fps_8.mp4" type="video/mp4" /></video>
+<h3 id="">Mesh-based Stylization</h3>
+<p>By combining stylized keyframes with point tracks derived from mesh vertices, our model can render 3D animations in novel artistic styles. This ensures the generated video strictly adheres to the underlying geometry and animation of the original mesh while applying consistent visual themes.</p>
+<video><source src="./videos_mesh/pour.mp4" type="video/mp4" /></video>
+<video><source src="./videos_mesh/pour_orbit.mp4" type="video/mp4" /></video>
+<video><source src="./videos_mesh/test_hug.mp4" type="video/mp4" /></video>
+<h3 id="">Camera Control</h3>
+<p>TrackR2V enables precise camera retargeting and novel view synthesis by projecting reconstructed points onto target trajectories. We support complex camera movements, including spirals and smooth view interpolations, using just sparse image inputs and point cloud reconstructions. Beyond static environments, our framework handles camera retargeting within dynamic scenes containing independently moving objects. By leveraging robust point-track conditions, we maintain temporal coherence between the shifting camera perspective and the dynamic elements of the scene.</p>
+<video><source src="./camera_First/2795731-uhd_3840_2160_25fps.mp4" type="video/mp4" /></video>
+<video><source src="./camera_First/2873755-uhd_3840_2160_25fps.mp4" type="video/mp4" /></video>
+<video><source src="./camera_First/7041992-uhd_3840_2160_24fps.mp4" type="video/mp4" /></video>
+<video><source src="./camera_First/7320360-uhd_3840_2160_25fps.mp4" type="video/mp4" /></video>
+<video><source src="./camera_First/nature_1_rotate.mp4" type="video/mp4" /></video>
+<video><source src="./camera_First/vid2sim.mp4" type="video/mp4" /></video>
+<video><source src="./camera_dynamic/4880462-uhd_4096_2160_25fps.mp4" type="video/mp4" /></video>
+<video><source src="./camera_dynamic/4919748-uhd_4096_2160_25fps.mp4" type="video/mp4" /></video>
+<video><source src="./camera_dynamic/5637324-uhd_4096_2160_25fps.mp4" type="video/mp4" /></video>
+<video><source src="./camera_dynamic/7041992-uhd_3840_2160_24fps.mp4" type="video/mp4" /></video>
+<video><source src="./camera_dynamic/7320360-uhd_3840_2160_25fps.mp4" type="video/mp4" /></video>
+<video><source src="./camera_dynamic/9489172-uhd_4096_2160_25fps.mp4" type="video/mp4" /></video>
+<video><source src="./camera_dynamic/9631907-uhd_4096_2160_24fps.mp4" type="video/mp4" /></video>
+<h3 id="">Temporal Stabilization</h3>
+<p>We address temporal flickering in inverse rendering tasks by propagating albedo and shading estimates from keyframes to the full sequence. TrackR2V ensures smooth, temporally consistent material properties across frames, effectively smoothing out the jitter often seen in per-frame estimation methods.</p>
+<video><source src="./videos_jul/13470978_1280_720_24fps_albedo_Ref2.mp4" type="video/mp4" /></video>
+<video><source src="./videos_jul/3135811-hd_1280_720_24fps_albedo_Ref2.mp4" type="video/mp4" /></video>
+<video><source src="./videos_jul/3326746-hd_1280_720_24fps_albedo_Ref2.mp4" type="video/mp4" /></video>
+<video><source src="./videos_jul/3327058-hd_1280_720_24fps_albedo_Ref2.mp4" type="video/mp4" /></video>
+<video><source src="./videos_jul/3327058-hd_1280_720_24fps_lighting_Ref2.mp4" type="video/mp4" /></video>
+<video><source src="./videos_jul/3770033-hd_1280_720_25fps_albedo_Ref2.mp4" type="video/mp4" /></video>
+<video><source src="./videos_jul/3770033-hd_1280_720_25fps_lighting_Ref2.mp4" type="video/mp4" /></video>
+<video><source src="./videos_jul/7578544-hd_1280_720_30fps_albedo_Ref2.mp4" type="video/mp4" /></video>
+<video><source src="./videos_jul/7578544-hd_1280_720_30fps_lighting_Ref2.mp4" type="video/mp4" /></video>
+<h3 id="">Point Densification</h3>
+<p>We provide a visuals of the detected point tracks when using our iterative resampling technique (Algorithm 1) versus uniformly sampling of point queries in the space-time regions with point track queries. As evident, we see that our point tracks show much better coverage and less sparsity especially for objects that enter or exit in the middle of the scene.</p>
+<video><source src="./sampling_videos/0.mp4" type="video/mp4" /></video>
+</div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            var tocContainer = document.getElementById("toc");
+            var tocList = document.createElement("ul");
+            
+            // Select ONLY h3s for the nav
+            var headings = document.querySelectorAll("h3");
+            
+            headings.forEach(function(heading) {
+                if (!heading.id) {
+                    heading.id = heading.textContent.toLowerCase().trim()
+                        .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+                }
+                var li = document.createElement("li");
+                var a = document.createElement("a");
+                a.href = "#" + heading.id;
+                a.textContent = heading.textContent;
+                li.appendChild(a);
+                tocList.appendChild(li);
+            });
+            tocContainer.appendChild(tocList);
+
+            // Scroll Spy
+            window.addEventListener("scroll", function() {
+                var scrollPos = window.scrollY || document.documentElement.scrollTop;
+                var currentId = "";
+                headings.forEach(function(heading) {
+                    if (heading.offsetTop <= (scrollPos + 120)) { currentId = heading.id; }
+                });
+                document.querySelectorAll('#toc li').forEach(function(li) {
+                    li.classList.remove('active');
+                });
+                if (currentId) {
+                    var activeLink = document.querySelector('#toc a[href="#' + currentId + '"]');
+                    if (activeLink) activeLink.parentElement.classList.add('active');
+                }
+            });
+
+            var videos = document.querySelectorAll("video");
+            for (var i = 0; i < videos.length; i++) {
+                videos[i].autoplay = true; videos[i].loop = true;
+                videos[i].muted = true; videos[i].setAttribute("playsinline", ""); 
+            }
+        });
+    </script>
+    
+</body></html>
