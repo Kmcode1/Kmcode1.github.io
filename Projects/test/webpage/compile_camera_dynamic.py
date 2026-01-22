@@ -1,637 +1,394 @@
 """
-Compile restylization results
-conda activate das
-cd /root/Netflix/myproject/data_preprocess/webpage/
-rm -r camera_dynamic
-python compile_camera_dynamic.py
+Compile restylization results: Human Readable Labels
+Usage:
+     python compile_camera_dynamic.py --input_folder "/mnt/c/Users/koich/Siggraph/web/davis_dynamic" --output_folder "./davis_dynamic"
 """
 
-import torch, os, json, sys
-sys.path.append(".")
-import stack_videos
+import os
+import sys
 import argparse
-from pathlib import Path
-import random
-import os
-import subprocess
-from decord import VideoReader, cpu
-import mediapy as media
 import numpy as np
-from PIL import Image
-import PIL
 import cv2
 import imageio
-import cv2
-import numpy as np
-from PIL import Image, ImageDraw, ImageFont # Added for better text support
-
 from PIL import Image
-from io import BytesIO
-import os
-import base64
-import types
-import time
-from decord import VideoReader, cpu
-import numpy as np
-import mediapy as media
-
-
-import fsspec
-from contextlib import contextmanager
-import tempfile
-import imageio
-import subprocess
-
-import os
-import numpy as np
-import cv2
-import torch
-import flow_vis
-
-
-import random
-from datetime import datetime
-
-from matplotlib import cm
-import torch.nn.functional as F
-import torchvision.transforms as transforms
 from moviepy.editor import ImageSequenceClip
 import matplotlib.pyplot as plt
+from matplotlib import cm
 from tqdm import tqdm
 
-def save_video_jordan(output_path, video, fps, quality=None, imageio_params=None, save_individual = False):
-    """
-    Args:
-        video: F x H x W x 3, in np.uint8 (so 0-255)
-    
-    Jordan:
-    
-    My function for saving mp4 and gifs (depending on the output name you give it, it will automatically figure out if it needs to save a gif or an mp4):
-First, install imageio with pip install "imageio[ffmpeg]", then ffmpeg is important because otherwise it will not support GIF saving
-    
-    Paul (https://www.reddit.com/r/photoshop/comments/h8uiq3/cant_seem_to_get_accurate_30_fps_in_photoshop/):
-    
-    GIF files that contain animation do not store a "framerate". Instead it stores, per frame, a "frame duration". And that frame duration is stored as an integer (n) that defines n/100ths of a second. So you can specify a frame duration of 1/100 sec, 2/100 sec, 3/100 sec, 4/100 sec, etc. but not something like 3.3333.../100 sec. (30 fps).
-    you can not get 60 fps. But you can get 25 and 50 fps.
-    """
-    
+# Local import
+sys.path.append(".")
+import stack_videos
+
+def save_video_jordan(output_path, video, fps, quality=None, imageio_params=None):
     imageio_params = imageio_params if imageio_params is not None else {}
-    if quality is not None:  # Quality is 1-10, generally for MP4 I do 7 or above, unsure how quality affects GIFs
+    if quality is not None:
         imageio_params["quality"] = quality
-    if os.path.splitext(output_path)[1] == ".gif":  # Makes sure the gif will loop when it ends
+    if os.path.splitext(output_path)[1].lower() == ".gif":
         imageio_params["loop"] = 0
 
-    if True:
-        writer = imageio.get_writer(output_path, fps=fps, **imageio_params)
-        for i in range(len(video)):
-            writer.append_data(np.array(video[i]))
-        writer.close()
-
-
-def read_video_from_path(path):
-    cap = cv2.VideoCapture(path)
-    if not cap.isOpened():
-        print("Error opening video file")
-    else:
-        frames = []
-        while cap.isOpened():
-            ret, frame = cap.read()
-            if ret == True:
-                frames.append(np.array(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)))
-            else:
-                break
-        cap.release()
-    return np.stack(frames)
-
+    writer = imageio.get_writer(output_path, fps=fps, **imageio_params)
+    for i in range(len(video)):
+        writer.append_data(np.array(video[i]))
+    writer.close()
 
 class Visualizer:
     def __init__(
         self,
         save_dir: str = "./results",
-        grayscale: bool = False,
         pad_value: int = 0,
         fps: int = 10,
-        mode: str = "rainbow",  # 'cool', 'optical_flow'
+        mode: str = "rainbow",
         linewidth: int = 1,
-        show_first_frame: int = 10,
-        tracks_leave_trace: int = 0,  # -1 for infinite
+        tracks_leave_trace: int = 0,
     ):
         self.mode = mode
         self.save_dir = save_dir
-        self.vtxt_path = os.path.join(save_dir, "videos.txt")
-        self.ttxt_path = os.path.join(save_dir, "trackings.txt")
         if mode == "rainbow":
             self.color_map = cm.get_cmap("gist_rainbow")
         elif mode == "cool":
             self.color_map = cm.get_cmap(mode)
-        self.show_first_frame = show_first_frame
-        self.grayscale = grayscale
+            
         self.tracks_leave_trace = tracks_leave_trace
         self.pad_value = pad_value
         self.linewidth = linewidth
         self.fps = fps
 
-    def visualize(
-        self,
-        video: torch.Tensor,  # (B,T,C,H,W)
-        tracks: torch.Tensor,  # (B,T,N,2)
-        visibility: torch.Tensor = None,  # (B, T, N, 1) bool
-        gt_tracks: torch.Tensor = None,  # (B,T,N,2)
-        segm_mask: torch.Tensor = None,  # (B,1,H,W)
-        filename: str = "video",
-        writer=None,  # tensorboard Summary Writer, used for visualization during training
-        step: int = 0,
-        query_frame: int = 0,
-        save_video: bool = True,
-        compensate_for_camera_motion: bool = False,
-        rigid_part = None,
-        video_depth = None # (B,T,C,H,W)
-    ):
-        if compensate_for_camera_motion:
-            assert segm_mask is not None
-        if segm_mask is not None:
-            coords = tracks[0, query_frame].round().long()
-            segm_mask = segm_mask[0, query_frame][coords[:, 1], coords[:, 0]].long()
+    def visualize(self, video: np.ndarray, tracks: np.ndarray, visibility: np.ndarray = None, filename: str = "video", save_video: bool = True):
+        # video is (T, H, W, C). Pad H and W.
+        if self.pad_value > 0:
+            pad_width = ((0,0), (self.pad_value, self.pad_value), (self.pad_value, self.pad_value), (0,0))
+            video = np.pad(video, pad_width, mode='constant', constant_values=255)
+            tracks = tracks + self.pad_value
 
-        video = F.pad(
-            video,
-            (self.pad_value, self.pad_value, self.pad_value, self.pad_value),
-            "constant",
-            255,
-        )
-
-        if video_depth is not None:
-            video_depth = (video_depth*255).cpu().numpy().astype(np.uint8)
-            video_depth = ([cv2.applyColorMap(video_depth[0,i,0], cv2.COLORMAP_INFERNO) 
-                            for i in range(video_depth.shape[1])])
-            video_depth = np.stack(video_depth, axis=0)
-            video_depth = torch.from_numpy(video_depth).permute(0, 3, 1, 2)[None]
-
-        tracks = tracks + self.pad_value
-
-        if self.grayscale:
-            transform = transforms.Grayscale()
-            video = transform(video)
-            video = video.repeat(1, 1, 3, 1, 1)
-
-        tracking_video = self.draw_tracks_on_video(
-            video=video,
-            tracks=tracks,
-            visibility=visibility,
-            segm_mask=segm_mask,
-            gt_tracks=gt_tracks,
-            query_frame=query_frame,
-            compensate_for_camera_motion=compensate_for_camera_motion,
-            rigid_part=rigid_part
-        )
+        tracking_video = self.draw_tracks_on_video(video=video, tracks=tracks, visibility=visibility, filename=filename)
 
         if save_video:
-            # import ipdb; ipdb.set_trace()
             tracking_dir = os.path.join(self.save_dir, "tracking")
-            if not os.path.exists(tracking_dir):
-                os.makedirs(tracking_dir)
-            self.save_video(tracking_video, filename=filename+"_tracking", 
-                            savedir=tracking_dir, writer=writer, step=step)
-            # with open(self.ttxt_path, 'a') as file:
-            #     file.write(f"tracking/{filename}_tracking.mp4\n")
-
-            videos_dir = os.path.join(self.save_dir, "videos")
-            if not os.path.exists(videos_dir):
-                os.makedirs(videos_dir)
-            self.save_video(video, filename=filename, 
-                            savedir=videos_dir, writer=writer, step=step)
+            os.makedirs(tracking_dir, exist_ok=True)
+            self.save_video_clip(tracking_video, filename=filename+"_tracking", savedir=tracking_dir)
             
         return tracking_video
 
-    def save_video(self, video, filename, savedir=None, writer=None, step=0):
-        if writer is not None:
-            writer.add_video(
-                f"{filename}",
-                video.to(torch.uint8),
-                global_step=step,
-                fps=self.fps,
-            )
+    def save_video_clip(self, video, filename, savedir=None):
+        if savedir is None:
+            save_path = os.path.join(self.save_dir, f"{filename}.mp4")
         else:
-            os.makedirs(self.save_dir, exist_ok=True)
-            wide_list = list(video.unbind(1))
-            wide_list = [wide[0].permute(1, 2, 0).cpu().numpy() for wide in wide_list]
-            # clip = ImageSequenceClip(wide_list[2:-1], fps=self.fps)
-            clip = ImageSequenceClip(wide_list, fps=self.fps)
+            save_path = os.path.join(savedir, f"{filename}.mp4")
+            
+        if isinstance(video, np.ndarray):
+            video_list = list(video)
+        else:
+            video_list = video
 
-            # Write the video file
-            if savedir is None:
-                save_path = os.path.join(self.save_dir, f"{filename}.mp4")
-            else:
-                save_path = os.path.join(savedir, f"{filename}.mp4")
-            clip.write_videofile(save_path, codec="libx264", fps=self.fps, logger=None)
+        clip = ImageSequenceClip(video_list, fps=self.fps)
+        clip.write_videofile(save_path, codec="libx264", fps=self.fps, logger=None)
 
-            print(f"Video saved to {save_path}")
-
-    def draw_tracks_on_video(
-        self,
-        video: torch.Tensor,
-        tracks: torch.Tensor,
-        visibility: torch.Tensor = None,
-        segm_mask: torch.Tensor = None,
-        gt_tracks=None,
-        query_frame: int = 0,
-        compensate_for_camera_motion=False,
-        rigid_part=None,
-    ):
-        B, T, C, H, W = video.shape
-        _, _, N, D = tracks.shape
-
-        assert D == 3
-        assert C == 3
-        video = video[0].permute(0, 2, 3, 1).byte().detach().cpu().numpy()  # S, H, W, C
-        tracks = tracks[0].detach().cpu().numpy()  # S, N, 2
-        if gt_tracks is not None:
-            gt_tracks = gt_tracks[0].detach().cpu().numpy()
-
-        res_video = []
-
-        # process input video
-        for rgb in video:
-             res_video.append(rgb.copy())
+    def draw_tracks_on_video(self, video, tracks, visibility=None, filename=""):
+        T, H, W, C = video.shape
+        _, N, D = tracks.shape
         
-        ## create a blank tensor with the same shape as the video
-        #for rgb in video:
-        #    black_frame = np.zeros_like(rgb.copy(), dtype=rgb.dtype)
-        #    res_video.append(black_frame)
-
+        res_video = [frame.copy().astype(np.uint8) for frame in video]
         vector_colors = np.zeros((T, N, 3))
 
-        if self.mode == "optical_flow":
-
-            vector_colors = flow_vis.flow_to_color(tracks - tracks[query_frame][None])
-
-        elif segm_mask is None:
-            if self.mode == "rainbow":
-                x_min, x_max = tracks[0, :, 0].min(), tracks[0, :, 0].max()
-                y_min, y_max = tracks[0, :, 1].min(), tracks[0, :, 1].max()
-
-                if True:
-                    x_min = 1111111111
-                    x_max = -11111111111
-                    y_min = 1111111111
-                    y_max = -11111111111
-                    """
-                    visibility torch.Size([1, 49, 15000, 1])
-                    f tensor([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                            0])
-                    tracks (49, 15000, 3)
-                    """
-                    for num_tracks in range(tracks.shape[2]):
-                        f = (visibility[0, :, num_tracks,0] !=0).to(torch.float32).argmax(dim=0)
-                        print("visibility2", visibility.shape)
-                        print("f", f)
-                        print("tracks", tracks.shape)
-                        #f = -1
-                        x_min = min(tracks[f, num_tracks, 0], x_min)
-                        x_max = max(tracks[f, num_tracks, 0], x_max)
-                        y_min = min(tracks[f, num_tracks, 1], y_min)
-                        y_max = max(tracks[f, num_tracks, 1], y_max)
-
-                z_inv = 1/tracks[0, :, 2]
-                z_min, z_max = np.percentile(z_inv, [2, 98])
+        if self.mode == "rainbow":
+            x_min, x_max = 1e9, -1e9
+            y_min, y_max = 1e9, -1e9
+            
+            for num_tracks in range(N):
+                if visibility is not None:
+                    vis_col = visibility[:, num_tracks, 0]
+                    f = np.argmax(vis_col != 0)
+                else:
+                    f = 0
                 
-                norm_x = plt.Normalize(x_min, x_max)
-                norm_y = plt.Normalize(y_min, y_max)
-                norm_z = plt.Normalize(z_min, z_max)
+                x_min = min(tracks[f, num_tracks, 0], x_min)
+                x_max = max(tracks[f, num_tracks, 0], x_max)
+                y_min = min(tracks[f, num_tracks, 1], y_min)
+                y_max = max(tracks[f, num_tracks, 1], y_max)
 
-                for n in range(N):
-                    f = (visibility[0, :, n, 0] != 0).to(torch.float32).argmax(dim=0)
-                    #f = 0
-                    r = norm_x(tracks[f, n, 0])
-                    g = norm_y(tracks[f, n, 1])
-                    # r = 0
-                    # g = 0
-                    b = norm_z(1/tracks[0, n, 2])
-                    color = np.array([r, g, b])[None] * 255
-                    vector_colors[:, n] = np.repeat(color, T, axis=0)
-            else:
-                # color changes with time
-                for t in range(T):
-                    color = np.array(self.color_map(t / T)[:3])[None] * 255
-                    vector_colors[t] = np.repeat(color, N, axis=0)
-        else:
-            if self.mode == "rainbow":
-                vector_colors[:, segm_mask <= 0, :] = 255
+            safe_depth = tracks[0, :, 2].copy()
+            safe_depth[safe_depth == 0] = 1.0 
+            z_inv = 1.0 / safe_depth
+            z_min, z_max = np.percentile(z_inv, [2, 98])
+            
+            norm_x = plt.Normalize(x_min, x_max)
+            norm_y = plt.Normalize(y_min, y_max)
+            norm_z = plt.Normalize(z_min, z_max)
 
-                x_min, x_max = tracks[0, :, 0].min(), tracks[0, :, 0].max()
-                y_min, y_max = tracks[0, :, 1].min(), tracks[0, :, 1].max()
-                z_min, z_max = tracks[0, :, 2].min(), tracks[0, :, 2].max()
+            for n in range(N):
+                if visibility is not None:
+                    f = np.argmax(visibility[:, n, 0] != 0)
+                else:
+                    f = 0
+                
+                r = norm_x(tracks[f, n, 0])
+                g = norm_y(tracks[f, n, 1])
+                d_val = tracks[0, n, 2] if tracks[0, n, 2] != 0 else 1.0
+                b = norm_z(1.0 / d_val)
+                
+                color = np.array([r, g, b])[None] * 255
+                vector_colors[:, n] = np.repeat(color, T, axis=0)
 
-                norm_x = plt.Normalize(x_min, x_max)
-                norm_y = plt.Normalize(y_min, y_max)
-                norm_z = plt.Normalize(z_min, z_max)
-
-                for n in range(N):
-                    r = norm_x(tracks[0, n, 0])
-                    g = norm_y(tracks[0, n, 1])
-                    b = norm_z(tracks[0, n, 2])
-                    color = np.array([r, g, b])[None] * 255
-                    vector_colors[:, n] = np.repeat(color, T, axis=0)
-
-            else:
-                # color changes with segm class
-                segm_mask = segm_mask.cpu()
-                color = np.zeros((segm_mask.shape[0], 3), dtype=np.float32)
-                color[segm_mask > 0] = np.array(self.color_map(1.0)[:3]) * 255.0
-                color[segm_mask <= 0] = np.array(self.color_map(0.0)[:3]) * 255.0
-                vector_colors = np.repeat(color[None], T, axis=0)
-
-        # Draw tracks
-        if self.tracks_leave_trace != 0:
-            for t in range(1, T):
-                first_ind = (
-                    max(0, t - self.tracks_leave_trace)
-                    if self.tracks_leave_trace >= 0
-                    else 0
-                )
-                curr_tracks = tracks[first_ind : t + 1]
-                curr_colors = vector_colors[first_ind : t + 1]
-                if compensate_for_camera_motion:
-                    diff = (
-                        tracks[first_ind : t + 1, segm_mask <= 0]
-                        - tracks[t : t + 1, segm_mask <= 0]
-                    ).mean(1)[:, None]
-
-                    curr_tracks = curr_tracks - diff
-                    curr_tracks = curr_tracks[:, segm_mask > 0]
-                    curr_colors = curr_colors[:, segm_mask > 0]
-
-                res_video[t] = self._draw_pred_tracks(
-                    res_video[t],
-                    curr_tracks,
-                    curr_colors,
-                )
-                if gt_tracks is not None:
-                    res_video[t] = self._draw_gt_tracks(
-                        res_video[t], gt_tracks[first_ind : t + 1]
-                    )
-
-        if rigid_part is not None:
-            cls_label = torch.unique(rigid_part)
-            cls_num = len(torch.unique(rigid_part))
-            # visualize the clustering results 
-            cmap = plt.get_cmap('jet')  # get the color mapping
-            colors = cmap(np.linspace(0, 1, cls_num))  
-            colors = (colors[:, :3] * 255) 
-            color_map = {lable.item(): color for lable, color in zip(cls_label, colors)}
-
-        # Draw points
-        for t in tqdm(range(T)):
-            # Create a list to store information for each point
+        for t in tqdm(range(T), desc=f"Drawing {filename}"):
             points_info = []
             for i in range(N):
                 coord = (tracks[t, i, 0], tracks[t, i, 1])
-                depth = tracks[t, i, 2]  # assume the third dimension is depth
-                visibile = True
+                depth = tracks[t, i, 2]
+                is_visible = True
                 if visibility is not None:
-                    visibile = visibility[0, t, i]
+                    is_visible = visibility[t, i, 0] > 0
+                
                 if coord[0] != 0 and coord[1] != 0:
-                    if not compensate_for_camera_motion or (
-                        compensate_for_camera_motion and segm_mask[i] > 0
-                    ):
-                        points_info.append((i, coord, depth, visibile))
+                     points_info.append((i, coord, depth, is_visible))
             
-            # Sort points by depth, points with smaller depth (closer) will be drawn later
             points_info.sort(key=lambda x: x[2], reverse=True)
             
-            for i, coord, _, visibile in points_info:
-                if rigid_part is not None:
-                    color = color_map[rigid_part.squeeze()[i].item()]
-                    cv2.circle(
-                        res_video[t],
-                        coord,
-                        int(self.linewidth * 2),
-                        color.tolist(),
-                        thickness=-1 if visibile else 2
-                        -1,
-                    )
-                else:
-                    # Determine rectangle width based on the distance between adjacent tracks in the first frame
-                    if t == 0:
-                        distances = np.linalg.norm(tracks[0] - tracks[0, i], axis=1)
-                        distances = distances[distances > 0]
-                        rect_size = int(np.min(distances))/2
-                    
-                    # Define coordinates for top-left and bottom-right corners of the rectangle
-                    top_left = (int(coord[0] - rect_size), int(coord[1] - rect_size/1.5)) # Rectangle width is 1.5x (video aspect ratio is 1.5:1)
-                    bottom_right = (int(coord[0] + rect_size), int(coord[1] + rect_size/1.5))
+            for i, coord, _, is_visible in points_info:
+                if t == 0:
+                    diffs = tracks[0] - tracks[0, i]
+                    distances = np.linalg.norm(diffs, axis=1)
+                    valid_dists = distances[distances > 0]
+                    rect_size = (int(np.min(valid_dists)) / 2) if len(valid_dists) > 0 else 5
+                
+                if is_visible:
+                    cv2.circle(res_video[t], (int(coord[0]), int(coord[1])), int(self.linewidth * 2), vector_colors[t, i].tolist(), thickness=-1)
 
-                    # Draw rectangle
-                    if visibile:
-                        cv2.circle(
-                            res_video[t],
-                            (int(coord[0]), int(coord[1])),
-                            int(self.linewidth * 2),
-                            vector_colors[t, i].tolist(),
-                            thickness=-1 if visibile else 0
-                            -1,
-                        )
+        return np.stack(res_video)
 
-        # Construct the final rgb sequence
-        return torch.from_numpy(np.stack(res_video)).permute(0, 3, 1, 2)[None].byte()
 
-    def _draw_pred_tracks(
-        self,
-        rgb: np.ndarray,  # H x W x 3
-        tracks: np.ndarray,  # T x 2
-        vector_colors: np.ndarray,
-        alpha: float = 0.5,
-    ):
-        T, N, _ = tracks.shape
+# ==========================================
+# HELPER FUNCTIONS
+# ==========================================
 
-        for s in range(T - 1):
-            vector_color = vector_colors[s]
-            original = rgb.copy()
-            alpha = (s / T) ** 2
-            for i in range(N):
-                coord_y = (int(tracks[s, i, 0]), int(tracks[s, i, 1]))
-                coord_x = (int(tracks[s + 1, i, 0]), int(tracks[s + 1, i, 1]))
-                if coord_y[0] != 0 and coord_y[1] != 0:
-                    cv2.line(
-                        rgb,
-                        coord_y,
-                        coord_x,
-                        vector_color[i].tolist(),
-                        self.linewidth,
-                        cv2.LINE_AA,
-                    )
-            if self.tracks_leave_trace > 0:
-                rgb = cv2.addWeighted(rgb, alpha, original, 1 - alpha, 0)
-        return rgb
-
-    def _draw_gt_tracks(
-        self,
-        rgb: np.ndarray,  # H x W x 3,
-        gt_tracks: np.ndarray,  # T x 2
-    ):
-        T, N, _ = gt_tracks.shape
-        color = np.array((211.0, 0.0, 0.0))
-
-        for t in range(T):
-            for i in range(N):
-                gt_tracks = gt_tracks[t][i]
-                #  draw a red cross
-                if gt_tracks[0] > 0 and gt_tracks[1] > 0:
-                    length = self.linewidth * 3
-                    coord_y = (int(gt_tracks[0]) + length, int(gt_tracks[1]) + length)
-                    coord_x = (int(gt_tracks[0]) - length, int(gt_tracks[1]) - length)
-                    cv2.line(
-                        rgb,
-                        coord_y,
-                        coord_x,
-                        color,
-                        self.linewidth,
-                        cv2.LINE_AA,
-                    )
-                    coord_y = (int(gt_tracks[0]) - length, int(gt_tracks[1]) + length)
-                    coord_x = (int(gt_tracks[0]) + length, int(gt_tracks[1]) - length)
-                    cv2.line(
-                        rgb,
-                        coord_y,
-                        coord_x,
-                        color,
-                        self.linewidth,
-                        cv2.LINE_AA,
-                    )
-        return rgb
-
-good_examples = ["Netflix/myproject/train/eval/pexel_custom2_CameraRetraj_fixed_stylized/Netflix65K_14B_RandomVec30_ControlBefore_DecompQKVMLPNormQK_RefTimeNew_SelfQK_Lora8OV_1DTrack_PromptDrop15_Only49_3e5_AW3_DS_NoVAEOffload_Ref4_Crop0_W1000_Removal80_WanfunV3_GenRefDensification5_Inpaint8_GenFrameRefOnly_1000/Netflix65K_14B_RandomVec30_ControlBefore_DecompQKVMLPNormQK_RefTimeNew_SelfQK_Lora8OV_1DTrack_PromptDrop15_Only49_3e5_AW3_DS_NoVAEOffload_Ref4_Crop0_W1000_Removal80_WanfunV3_GenRefDensification5_Inpaint8_GenFrameRefOnly_1000/4919748-uhd_4096_2160_25fps_RotRight.gif", "Netflix/myproject/train/eval/pexel_custom2_CameraRetraj_fixed_stylized/Netflix65K_14B_RandomVec30_ControlBefore_DecompQKVMLPNormQK_RefTimeNew_SelfQK_Lora8OV_1DTrack_PromptDrop15_Only49_3e5_AW3_DS_NoVAEOffload_Ref4_Crop0_W1000_Removal80_WanfunV3_GenRefDensification5_Inpaint8_GenFrameRefOnly_1000/Netflix65K_14B_RandomVec30_ControlBefore_DecompQKVMLPNormQK_RefTimeNew_SelfQK_Lora8OV_1DTrack_PromptDrop15_Only49_3e5_AW3_DS_NoVAEOffload_Ref4_Crop0_W1000_Removal80_WanfunV3_GenRefDensification5_Inpaint8_GenFrameRefOnly_1000/7320360-uhd_3840_2160_25fps_UpForward.gif", "Netflix/myproject/train/eval/pexel_custom2_CameraRetraj_fixed_stylized/Netflix65K_14B_RandomVec30_ControlBefore_DecompQKVMLPNormQK_RefTimeNew_SelfQK_Lora8OV_1DTrack_PromptDrop15_Only49_3e5_AW3_DS_NoVAEOffload_Ref4_Crop0_W1000_Removal80_WanfunV3_GenRefDensification5_Inpaint8_GenFrameRefOnly_1000/Netflix65K_14B_RandomVec30_ControlBefore_DecompQKVMLPNormQK_RefTimeNew_SelfQK_Lora8OV_1DTrack_PromptDrop15_Only49_3e5_AW3_DS_NoVAEOffload_Ref4_Crop0_W1000_Removal80_WanfunV3_GenRefDensification5_Inpaint8_GenFrameRefOnly_1000/9489172-uhd_4096_2160_25fps_rot25.gif", 
-                "Netflix/myproject/train/eval/pexel_custom2_CameraRetraj_fixed_stylized/Netflix65K_14B_RandomVec30_ControlBefore_DecompQKVMLPNormQK_RefTimeNew_SelfQK_Lora8OV_1DTrack_PromptDrop15_Only49_3e5_AW3_DS_NoVAEOffload_Ref4_Crop0_W1000_Removal80_WanfunV3_GenRefDensification5_Inpaint8_GenFrameRefOnly_1000/Netflix65K_14B_RandomVec30_ControlBefore_DecompQKVMLPNormQK_RefTimeNew_SelfQK_Lora8OV_1DTrack_PromptDrop15_Only49_3e5_AW3_DS_NoVAEOffload_Ref4_Crop0_W1000_Removal80_WanfunV3_GenRefDensification5_Inpaint8_GenFrameRefOnly_1000/4880462-uhd_4096_2160_25fps_RotRight.gif",
-                "Netflix/myproject/train/eval/pexel_custom2_CameraRetraj_fixed_stylized/Netflix65K_14B_RandomVec30_ControlBefore_DecompQKVMLPNormQK_RefTimeNew_SelfQK_Lora8OV_1DTrack_PromptDrop15_Only49_3e5_AW3_DS_NoVAEOffload_Ref4_Crop0_W1000_Removal80_WanfunV3_GenRefDensification5_Inpaint8_GenFrameRefOnly_1000/Netflix65K_14B_RandomVec30_ControlBefore_DecompQKVMLPNormQK_RefTimeNew_SelfQK_Lora8OV_1DTrack_PromptDrop15_Only49_3e5_AW3_DS_NoVAEOffload_Ref4_Crop0_W1000_Removal80_WanfunV3_GenRefDensification5_Inpaint8_GenFrameRefOnly_1000/7041992-uhd_3840_2160_24fps_rot25.gif", "Netflix/myproject/train/eval/pexel_custom2_CameraRetraj_fixed_stylized/Netflix65K_14B_RandomVec30_ControlBefore_DecompQKVMLPNormQK_RefTimeNew_SelfQK_Lora8OV_1DTrack_PromptDrop15_Only49_3e5_AW3_DS_NoVAEOffload_Ref4_Crop0_W1000_Removal80_WanfunV3_22000/Netflix65K_14B_RandomVec30_ControlBefore_DecompQKVMLPNormQK_RefTimeNew_SelfQK_Lora8OV_1DTrack_PromptDrop15_Only49_3e5_AW3_DS_NoVAEOffload_Ref4_Crop0_W1000_Removal80_WanfunV3_22000/5637324-uhd_4096_2160_25fps_RotRight.gif", "Netflix/myproject/train/eval/pexel_custom2_CameraRetraj_fixed_stylized/Netflix65K_14B_RandomVec30_ControlBefore_DecompQKVMLPNormQK_RefTimeNew_SelfQK_Lora8OV_1DTrack_PromptDrop15_Only49_3e5_AW3_DS_NoVAEOffload_Ref4_Crop0_W1000_Removal80_WanfunV3_22000/Netflix65K_14B_RandomVec30_ControlBefore_DecompQKVMLPNormQK_RefTimeNew_SelfQK_Lora8OV_1DTrack_PromptDrop15_Only49_3e5_AW3_DS_NoVAEOffload_Ref4_Crop0_W1000_Removal80_WanfunV3_22000/9631907-uhd_4096_2160_24fps_UpForward.gif"]
-
-for i in range(len(good_examples)):
-    good_examples[i] = os.path.join("/root/", good_examples[i].replace(".gif", ".mp4"))
-
-def get_gt_video(path):
-    lis = path.split("/")
-    model_name = lis[-2]
-    video_name = lis[-1]
-    path = os.path.join("/".join(lis[:-2]), "log/", video_name.split(".mp4")[0], "tmp/video720.mp4")
-    return path
-
-def get_ref_imgs(path):
-    lis = path.split("/")
-    model_name = lis[-2]
-    video_name = lis[-1]
-    ref_folder = os.path.join("/".join(lis[:-2]), "log/", video_name.split(".mp4")[0], "ref")
-    ref_lis = os.listdir(ref_folder)
-    path_list = []
-    idx_list = []
+def get_vis_video(track_npy_path, video_basename, suffix_id, background_frames=None, width=None, height=None):
+    tmp_folder = os.path.join("./../tmp_webpage/tmp_vis_group", video_basename)
+    os.makedirs(tmp_folder, exist_ok=True)
     
-    tmp_folder = "./../tmp_webpage/tmp_julien/" + (video_name.split(".mp4"))[0] + "_ref"
-    os.makedirs(tmp_folder, exist_ok = True)
+    # Visualizer saves to: {save_dir}/tracking/{filename}_tracking.mp4
+    filename_base = f"vis_{suffix_id}"
+    expected_filename = f"{filename_base}_tracking.mp4"
+    output_vis_path = os.path.join(tmp_folder, "tracking", expected_filename)
     
-    for r in ref_lis:
-        if not r.endswith(".png"):
-            continue
-        fr = Image.open(os.path.join(ref_folder, r)).resize((832, 480))
-        frames = [fr] * 49
-        frames = np.array(frames)
-        ref_idx = r.split(".png")[0]        
-        tmp_file = os.path.join(tmp_folder, ref_idx + ".png")
-        save_video_jordan(tmp_file, frames, fps = 15, quality=9)
-        idx_list.append(int(ref_idx))
-        path_list.append(tmp_file)
-        
-    return path_list, idx_list
-
-def get_vis_video(path):
-    path = os.path.join("/root/", path)
-    tmp_folder = "./../tmp_webpage/tmp_vis/" + ((path.split("/")[-1]).split(".mp4")[0]) + "_dynamic"
-    os.makedirs(tmp_folder, exist_ok = True)
-    if os.path.exists(os.path.join(tmp_folder, "tracking/overlay_tracking.mp4")):
-        return os.path.join(tmp_folder, "tracking/overlay_tracking.mp4")
+    if os.path.exists(output_vis_path):
+        return output_vis_path
     
-    #get track visualization
-    lis = path.split("/")
-    model_name = lis[-2]
-    video_name = lis[-1]
-    path = os.path.join("/".join(lis[:-2]), "log/", video_name.split(".mp4")[0], "tmp/track.npy")
+    if not os.path.exists(track_npy_path):
+        return None
 
-    track = np.load(path, allow_pickle = True).item()
-    frames = np.zeros((49, track["H"], track["W"], 3))
-    vis = Visualizer(
-        save_dir=tmp_folder,
-        linewidth=2,
-        mode="rainbow",
-        fps=15,
-        tracks_leave_trace=0, #10,   # <= infinite trace
-    )
-
-    tr = track["uvz"][None]
-    tr = tr[:, :49]
-    track["vis"] = track["vis"][None] #(B, T, N, 1)
-    track["vis"] = (track["vis"].astype(np.bool_) & (tr[..., 0] >= 0) & (tr[..., 1] >= 0) & (tr[..., 0] < track["W"]) & (tr[..., 1] < track["H"]))
-
-    num_tracks = track["vis"].shape[2]
+    try:
+        track = np.load(track_npy_path, allow_pickle=True).item()
+    except Exception as e:
+        print(f"Error loading {track_npy_path}: {e}")
+        return None
     
-    if False and num_tracks > 250:
-        ids = np.random.choice(num_tracks, 250)
-        track["vis"] = track["vis"][:, :, ids]
-        tr = tr[:, :, ids]
+    H = height if height else track.get("H", 480)
+    W = width if width else track.get("W", 832)
     
-    vis.visualize(
-        video=torch.from_numpy(frames).permute(0,3,1,2)[None],
-        tracks=torch.from_numpy(tr),
-        visibility = torch.from_numpy(track["vis"][..., None]),
-        filename="overlay",
-        save_video=True,
-    )
-    
-    return os.path.join(tmp_folder, "tracking/overlay_tracking.mp4")
-    
-#classify by video type
-dic = {}
-for g in good_examples:
-    g = g.split("/")
-    vid_name = "_".join((g[-1].split(".mp4"))[0].split("_")[:-1])
-    if vid_name not in dic:
-        dic[vid_name] = []
-    dic[vid_name].append("/".join(g))
-print("dic", dic)
-
-
-#Iterate through each video
-for video_name in dic:
-    examples = dic[video_name]
-
-    #Retrieve ground truth video
-    #gt_path = get_gt_video(examples[0])
-    #print("gt", gt_path)
-
-    #Retrieve first-frame reference 
-    path_list, idx_list = get_ref_imgs(examples[0])
-    inputs = {}
-    for ii in range(len(path_list)):
-        if idx_list[ii] == 0:
-            inputs["First frame"] = path_list[ii]
-
-    if len(examples) == 1:
-        #Iterate through each example
-        for e_idx, e in enumerate(examples):
-            #Retrieve visualization of motion tracks (color gradetion)
-            vis_path = get_vis_video(e)
-    
-            #Retrieve generated video
-            gen_path = e
-            
-            #Stack together (GT, motion tracks, stylized videos)
-            inputs["Track conditions " + str(e_idx)] = vis_path
-            inputs["Generated video " + str(e_idx) ] = e
-            
-            print("inputs:", inputs)
+    if background_frames is not None:
+        frames = background_frames
     else:
-        raise NotImplementedError
+        frames = np.zeros((49, H, W, 3), dtype=np.uint8)
     
-    #Stack videos
-    output_video_path = os.path.join("./camera_dynamic", video_name + ".mp4")
-    os.makedirs("./camera_dynamic",  exist_ok = True)
-    stack_videos.stack_videos(inputs, output_video_path, cols=4)
-    print("saved:", output_video_path)
+    vis = Visualizer(save_dir=tmp_folder, linewidth=2, mode="rainbow", fps=15, tracks_leave_trace=0)
+
+    tr = track["uvz"]
+    if tr.ndim == 4: tr = tr[0]
+    tr = tr[:49]
     
+    vis_mask = track["vis"]
+    if vis_mask.ndim == 4: vis_mask = vis_mask[0]
+    
+    if tr.shape[0] != frames.shape[0]:
+        min_len = min(tr.shape[0], frames.shape[0])
+        tr = tr[:min_len]
+        vis_mask = vis_mask[:min_len]
+        frames = frames[:min_len]
+
+    on_screen = (tr[..., 0] >= 0) & (tr[..., 1] >= 0) & (tr[..., 0] < W) & (tr[..., 1] < H)
+    vis_mask_bool = vis_mask.astype(bool)
+    if vis_mask_bool.shape[-1] == 1: vis_mask_bool = vis_mask_bool[..., 0]
+        
+    final_vis = (vis_mask_bool & on_screen)[..., None]
+
+    vis.visualize(video=frames, tracks=tr, visibility=final_vis, filename=filename_base, save_video=True)
+    
+    return output_vis_path
+
+def get_ref_data(ref_folder, video_basename):
+    if not os.path.exists(ref_folder):
+        return [], []
+
+    ref_files = os.listdir(ref_folder)
+    indices = set()
+    for f in ref_files:
+        if f.endswith(".png"):
+            try:
+                indices.add(int(f.split(".png")[0]))
+            except: pass
+    
+    sorted_indices = sorted(list(indices))
+    
+    img_paths = []
+    track_paths = []
+    
+    tmp_folder = os.path.join("./../tmp_webpage/tmp_custom_group", video_basename + "_ref")
+    os.makedirs(tmp_folder, exist_ok=True)
+    
+    for idx in sorted_indices:
+        png_name = f"{idx}.png"
+        npy_name = f"{idx}.npy"
+        
+        png_full = os.path.join(ref_folder, png_name)
+        npy_full = os.path.join(ref_folder, npy_name)
+        
+        try:
+            fr = Image.open(png_full).resize((832, 480))
+            frame_arr = np.array(fr)
+            frames = np.array([frame_arr] * 49) 
+            
+            img_vid_path = os.path.join(tmp_folder, f"ref_img_{idx}.mp4")
+            if not os.path.exists(img_vid_path):
+                save_video_jordan(img_vid_path, frames, fps=15, quality=9)
+            img_paths.append(img_vid_path)
+            
+            if os.path.exists(npy_full):
+                track_vid_path = get_vis_video(
+                    npy_full, 
+                    video_basename, 
+                    suffix_id=f"ref_{idx}", 
+                    background_frames=frames,
+                    width=832, height=480
+                )
+                track_paths.append(track_vid_path)
+            else:
+                track_paths.append(None)
+
+        except Exception as e:
+            print(f"Error processing ref {idx}: {e}")
+            continue
+            
+    return img_paths, track_paths
+
+# ==========================================
+# MAIN EXECUTION
+# ==========================================
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Compile restylization results with grouping.")
+    parser.add_argument("--input_folder", type=str, required=True, help="Path to input.")
+    parser.add_argument("--output_folder", type=str, default="./camera_grouped", help="Path to output.")
+    
+    args = parser.parse_args()
+    
+    INPUT_FOLDER = args.input_folder
+    OUTPUT_FOLDER = args.output_folder
+
+    if not os.path.exists(INPUT_FOLDER):
+        print(f"Error: Input folder '{INPUT_FOLDER}' does not exist.")
+        exit()
+
+    os.makedirs(OUTPUT_FOLDER, exist_ok=True)
+    
+    # 1. Scan and Prioritize Files
+    all_files = os.listdir(INPUT_FOLDER)
+    file_map = {} 
+    
+    for f in all_files:
+        if f.startswith("."): continue
+        name, ext = os.path.splitext(f)
+        ext = ext.lower()
+        if ext not in ['.mp4', '.gif']: continue
+        
+        if name in file_map:
+            curr_ext = os.path.splitext(file_map[name])[1].lower()
+            if curr_ext == '.gif' and ext == '.mp4':
+                file_map[name] = f
+        else:
+            file_map[name] = f
+
+    valid_files = list(file_map.values())
+    print(f"Found {len(valid_files)} unique videos.")
+
+    # 2. Group by Prefix
+    groups = {}
+    for f in valid_files:
+        name = os.path.splitext(f)[0]
+        if "_" in name:
+            prefix = name.rsplit("_", 1)[0]
+        else:
+            prefix = name
+        
+        if prefix not in groups:
+            groups[prefix] = []
+        groups[prefix].append(f)
+
+    # 3. Process Groups
+    for prefix, group_files in groups.items():
+        print(f"Processing group: {prefix} ({len(group_files)} variants)")
+        group_files.sort() 
+        
+        inputs = {}
+        
+        # Locate Ref Folder
+        ref_imgs = []
+        ref_tracks = []
+        
+        for f in group_files:
+            basename = os.path.splitext(f)[0]
+            ref_path = os.path.join(INPUT_FOLDER, basename, "ref")
+            if os.path.exists(ref_path):
+                ref_imgs, ref_tracks = get_ref_data(ref_path, prefix)
+                if ref_imgs: break 
+        
+        # --- Construct Grid Inputs ---
+        # Note: We use leading spaces to enforce sort order without visible numbers.
+        # "   " (3 spaces) -> Top
+        # "  "  (2 spaces) -> 2nd
+        # " "   (1 space)  -> 3rd
+        # ""    (0 spaces) -> Bottom (because G > Space)
+        
+        # ROW 1: Reference Images (3 Spaces)
+        for i, vid in enumerate(ref_imgs):
+            inputs[f"   Reference Frame {i+1}"] = vid
+
+        # ROW 2: Reference Tracks (2 Spaces)
+        has_ref_tracks = any(t is not None for t in ref_tracks)
+        if has_ref_tracks:
+            for i, vid in enumerate(ref_tracks):
+                if vid:
+                    inputs[f"  Reference Track {i+1}"] = vid
+
+        # ROW 3+: Variants
+        for i, f in enumerate(group_files):
+            basename = os.path.splitext(f)[0]
+            vid_path = os.path.join(INPUT_FOLDER, f)
+            track_path = os.path.join(INPUT_FOLDER, basename, "tmp", "track.npy")
+            
+            vis_path = get_vis_video(track_path, basename, suffix_id=f"vid_{i}")
+            
+            # ROW 3: Video Track (Condition) - (1 Space)
+            if vis_path:
+                inputs[f" Video Track {i+1}"] = vis_path
+            
+            # ROW 4: Generated Video (Result) - (0 Spaces, starts with G)
+            # Note: " Generated" (space) sorts before "Reference" (no space)
+            # But here "Generated" has 0 spaces.
+            # "   Ref" < "  Ref" < " Vid" < "Generated"
+            inputs[f"Generated Video {i+1}"] = vid_path
+
+        # Determine Columns (Cap at 4)
+        calculated_cols = max(len(ref_imgs), 2 * len(group_files))
+        cols = min(4, calculated_cols)
+        if cols == 0: cols = 4
+
+        output_path = os.path.join(OUTPUT_FOLDER, prefix + ".mp4")
+        
+        try:
+            print(f"Stacking {len(inputs)} videos with cols={cols}...")
+            stack_videos.stack_videos(inputs, output_path, cols=cols)
+            print(f"Saved: {output_path}")
+        except Exception as e:
+            print(f"Failed to stack group {prefix}: {e}")
+
+    print("Done.")

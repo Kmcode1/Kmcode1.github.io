@@ -262,6 +262,12 @@ videos_camera_first = []
 for f in os.listdir("./camera_First")[:topk]:
     path = os.path.join("./camera_First", f)
     videos_camera_first.append({"type": "video", "content": path})
+for f in os.listdir("./camera_custom_sig")[:topk]:
+    path = os.path.join("./camera_custom_sig", f)
+    videos_camera_first.append({"type": "video", "content": path})
+for f in os.listdir("./static_z")[:topk]:
+    path = os.path.join("./static_z", f)
+    videos_camera_first.append({"type": "video", "content": path})
 
 #Prepare camera_dynamic
 videos_camera_dynamic = []
