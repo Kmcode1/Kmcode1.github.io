@@ -3,6 +3,11 @@ Compile restylization results: Human Readable Labels
 Usage:
      python compile_camera_dynamic.py --input_folder "/mnt/c/Users/koich/Siggraph/web/davis_dynamic" --output_folder "./davis_dynamic"
 """
+"""
+Compile restylization results: Human Readable Labels
+Usage:
+      python compile_camera_dynamic.py --input_folder "/mnt/c/Users/koich/Siggraph/web/davis_dynamic" --output_folder "./davis_dynamic"
+"""
 
 import os
 import sys
@@ -140,7 +145,7 @@ class Visualizer:
                     is_visible = visibility[t, i, 0] > 0
                 
                 if coord[0] != 0 and coord[1] != 0:
-                     points_info.append((i, coord, depth, is_visible))
+                      points_info.append((i, coord, depth, is_visible))
             
             points_info.sort(key=lambda x: x[2], reverse=True)
             
@@ -170,8 +175,28 @@ def get_vis_video(track_npy_path, video_basename, suffix_id, background_frames=N
     expected_filename = f"{filename_base}_tracking.mp4"
     output_vis_path = os.path.join(tmp_folder, "tracking", expected_filename)
     
+    # --- UPDATED LOGIC: Check validity of existing file ---
     if os.path.exists(output_vis_path):
-        return output_vis_path
+        is_valid = False
+        try:
+            cap = cv2.VideoCapture(output_vis_path)
+            if cap.isOpened():
+                ret, _ = cap.read()
+                if ret:
+                    is_valid = True
+            cap.release()
+        except:
+            pass
+            
+        if is_valid:
+            return output_vis_path
+        else:
+            print(f"Warning: Found corrupt file {output_vis_path}. Deleting and regenerating...")
+            try:
+                os.remove(output_vis_path)
+            except OSError:
+                pass
+    # ----------------------------------------------------
     
     if not os.path.exists(track_npy_path):
         return None
@@ -348,16 +373,14 @@ if __name__ == "__main__":
         # " "   (1 space)  -> 3rd
         # ""    (0 spaces) -> Bottom (because G > Space)
         
-        # ROW 1: Reference Images (3 Spaces)
-        for i, vid in enumerate(ref_imgs):
-            inputs[f"   Reference Frame {i+1}"] = vid
+        # ROW 1 REMOVED: Reference Images were here.
 
         # ROW 2: Reference Tracks (2 Spaces)
         has_ref_tracks = any(t is not None for t in ref_tracks)
         if has_ref_tracks:
             for i, vid in enumerate(ref_tracks):
                 if vid:
-                    inputs[f"  Reference Track {i+1}"] = vid
+                    inputs[f"  Reference Frame and Track {i+1}"] = vid
 
         # ROW 3+: Variants
         for i, f in enumerate(group_files):
@@ -367,14 +390,11 @@ if __name__ == "__main__":
             
             vis_path = get_vis_video(track_path, basename, suffix_id=f"vid_{i}")
             
-            # ROW 3: Video Track (Condition) - (1 Space)
+            # ROW 3: Track Conditions (1 Space)
             if vis_path:
-                inputs[f" Video Track {i+1}"] = vis_path
+                inputs[f" Track Conditions {i+1}"] = vis_path 
             
             # ROW 4: Generated Video (Result) - (0 Spaces, starts with G)
-            # Note: " Generated" (space) sorts before "Reference" (no space)
-            # But here "Generated" has 0 spaces.
-            # "   Ref" < "  Ref" < " Vid" < "Generated"
             inputs[f"Generated Video {i+1}"] = vid_path
 
         # Determine Columns (Cap at 4)

@@ -239,6 +239,11 @@ for f in os.listdir("./baselines")[:topk]:
     path = os.path.join("./baselines", f)
     baselines.append({"type": "video", "content": path})
     
+videos_lady = []
+for f in ["recon.mp4", "remove.mp4", "rep.mp4"]:
+    path = os.path.join("./lady", f)
+    videos_lady.append({"type": "video", "content": path})
+
 #Prepare Motion control
 videos_mo = []
 for f in os.listdir("./videos_motion_transfer")[:topk]:
@@ -246,10 +251,10 @@ for f in os.listdir("./videos_motion_transfer")[:topk]:
     videos_mo.append({"type": "video", "content": path})
 
 #Prepare Motion control 720P
-videos_mo_720 = []
-for f in os.listdir("./720P_motion_transfer")[:topk]:
-    path = os.path.join("./720P_motion_transfer", f)
-    videos_mo_720.append({"type": "video", "content": path})
+#videos_mo_720 = []
+#for f in os.listdir("./720P_motion_transfer")[:topk]:
+#    path = os.path.join("./720P_motion_transfer", f)
+#    videos_mo_720.append({"type": "video", "content": path})
 
 #Prepare Mesh based stylization
 videos_mesh = []
@@ -305,52 +310,59 @@ content_data = {
     "blocks": [
         # --- SECTION 3: APPLICATIONS ---
         {"type": "h2", "content": "Applications"},
-        {"type": "text", "content": "We show samples of some applications of TrackR2V: Motion Transfer, Mesh-based Stylization, Motion Transfer, and Camera Control."},
+        {"type": "text", "content": "We show samples of some applications of Go-with-the-Track: Motion Transfer, Mesh-based Stylization, Static Scene (Bullet Time) Camera Control, Dynamic-scene Camera Control, Temporal Stabilization"},
         
-        {"type": "h3", "content": "Motion Transfer"},
-        {"type": "text", "content": "We extract tracking fields from source videos to transfer complex motion patterns to new subjects defined by reference images. This process preserves the visual identity of the reference while faithfully reproducing the target dynamics without requiring specific 3D reconstruction or pose estimation."},
+        {"type": "h3", "content": "Keyframe based Motion Transfer"},
+        {"type": "text", "content": "We extract point-track conditions from source videos to transfer complex motion patterns to new subjects defined by reference images. This process preserves the visual identity of the reference while faithfully reproducing the target dynamics."},
         *videos_mo,
 
+        {"type": "h3", "content": "Track-level object editing"},
+        {"type": "text", "content": "Our flexible problem formulation allows track-level object editing such as recompositing, removal, and replacement as follows."},
+        # 1. Recomposition
+        {"type": "text", "content": "<b>Recomposition of human and background:</b>"},
+        {"type": "text", "content": "By separating foreground human from background, our model allows to preserve both human and background appearence and motions with just three reference iamges"},
+        videos_lady[0],
+        # 2. Removal
+        {"type": "text", "content": "<b>Removal of human</b>"},
+        {"type": "text", "content": "By removing point-tracks and reference image associated with human, we can obtain a video of background."},
+        videos_lady[1],
+        # 3. Replacement
+        {"type": "text", "content": "<b>Appearence replacement</b>"},
+        {"type": "text", "content": "By matching keypoints of human body between original human and reference human, we can replace the appearence of human in the video."},
+        videos_lady[2],
+
         # --- SECTION 2: 720P ---
-        {"type": "h3", "content": "Results in 720p"},
-        {"type": "text", "content": "By fine-tuning our 14B parameter model on 65K high-quality real-world videos, we successfully scaled our generation capabilities to 720P. These results demonstrate that TrackR2V maintains precise motion controllability and high visual fidelity even at significantly higher resolutions."},
-        *videos_mo_720,
+        #{"type": "h3", "content": "Results in 720p"},
+        #{"type": "text", "content": "By fine-tuning our 14B parameter model on 65K high-quality real-world videos, we successfully scaled our generation capabilities to 720P. These results demonstrate that TrackR2V maintains precise motion controllability and high visual fidelity even at significantly higher resolutions."},
+        #*videos_mo_720,
         
         # --- SECTION 1: VIDEO RESULTS ---
         # {"type": "h2", "content": "Baseline Comparisons"},
-        
-        {"type": "h3", "content": "Comparison to baselines"},
-        {"type": "text", "content": "Compared to state-of-the-art methods like ATI, DiffusionAsShader, and Tora, TrackR2V demonstrates superior structural integrity and motion following. Our model significantly reduces artifacts and better preserves subject identity, particularly in challenging scenarios involving occlusions, as validated by user studies."},
-        
-        # Since these are just single comparison videos stacked, we add them as 'video' types
-        *baselines,
 
         {"type": "h3", "content": "Mesh-based Stylization"},
         {"type": "text", "content": "By combining stylized keyframes with point tracks derived from mesh vertices, our model can render 3D animations in novel artistic styles. This ensures the generated video strictly adheres to the underlying geometry and animation of the original mesh while applying consistent visual themes."},
         *videos_mesh,
         
-        {"type": "h3", "content": "Camera Control"},
-        {"type": "text", "content": "TrackR2V enables precise camera retargeting and novel view synthesis by projecting reconstructed points onto target trajectories. We support complex camera movements, including spirals and smooth view interpolations, using just sparse image inputs and point cloud reconstructions. Beyond static environments, our framework handles camera retargeting within dynamic scenes containing independently moving objects. By leveraging robust point-track conditions, we maintain temporal coherence between the shifting camera perspective and the dynamic elements of the scene."},
+        {"type": "h3", "content": "Static Scene (Bullet Time) Camera Control"},
+        {"type": "text", "content": "Go-with-the-Track enables precise camera retargeting and novel view synthesis by projecting reconstructed points onto target trajectories. We support complex camera movements, including spirals and smooth view interpolations, using just sparse image inputs and point cloud reconstructions. Beyond static environments, our framework handles camera retargeting within dynamic scenes containing independently moving objects. By leveraging robust point-track conditions, we maintain temporal coherence between the shifting camera perspective and the dynamic elements of the scene."},
         *videos_camera_first,
+
+        {"type": "h3", "content": "Dynamic Scene Camera Control"},
+        {"type": "text", "content": "Beyond static scene (Bullet Time) video generation, our framework handles camera retargeting within dynamic scenes containing independently moving objects. By leveraging robust point-track conditions, we maintain temporal coherence between the shifting camera perspective and the dynamic elements of the scene."},
         *videos_camera_dynamic,
 
         {"type": "h3", "content": "Temporal Stabilization"},
         {"type": "text", "content": "We address temporal flickering in inverse rendering tasks by propagating albedo and shading estimates from keyframes to the full sequence. TrackR2V ensures smooth, temporally consistent material properties across frames, effectively smoothing out the jitter often seen in per-frame estimation methods."},
         *videos_jul,
 
+        {"type": "h3", "content": "Comparison to baselines"},
+        {"type": "text", "content": "Compared to state-of-the-art methods like ATI, DiffusionAsShader, and Tora, TrackR2V demonstrates superior structural integrity and motion following. Our model significantly reduces artifacts and better preserves subject identity, particularly in challenging scenarios involving occlusions, as validated by user studies."},
+        # Since these are just single comparison videos stacked, we add them as 'video' types
+        *baselines,
+
         {"type": "h3", "content": "Point Densification"},
         {"type": "text", "content": "We provide a visuals of the detected point tracks when using our iterative resampling technique (Algorithm 1) versus uniformly sampling of point queries in the space-time regions with point track queries. As evident, we see that our point tracks show much better coverage and less sparsity especially for objects that enter or exit in the middle of the scene."},
         *videos_sample,
-        
-        # Using 'video_row' for side-by-side layout
-        # {"type": "video_row", "content": [
-        #     "./videos/sample_name.mp4",
-        #     "./videos/sample_name.mp4"
-        # ]},
-        # {"type": "video_row", "content": [
-        #     "./videos/sample_name.mp4",
-        #     "./videos/sample_name.mp4"
-        # ]},
     ]
 }
 

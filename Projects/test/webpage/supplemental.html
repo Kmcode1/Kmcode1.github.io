@@ -101,21 +101,80 @@
         <p>Go-with-the-Track unifies motion control and multi-reference conditioning within a single framework, using dense point tracks to guide spatiotemporal evolution. Our model enables the precise placement of elements that enter or exit the scene and achieves superior fidelity in applications ranging from complex motion transfer to dynamic camera control.</p>
     
 <h2 id="">Applications</h2>
-<p>We show samples of some applications of TrackR2V: Motion Transfer, Mesh-based Stylization, Motion Transfer, and Camera Control.</p>
-<h3 id="">Motion Transfer</h3>
-<p>We extract tracking fields from source videos to transfer complex motion patterns to new subjects defined by reference images. This process preserves the visual identity of the reference while faithfully reproducing the target dynamics without requiring specific 3D reconstruction or pose estimation.</p>
+<p>We show samples of some applications of Go-with-the-Track: Motion Transfer, Mesh-based Stylization, Static Scene (Bullet Time) Camera Control, Dynamic-scene Camera Control, Temporal Stabilization</p>
+<h3 id="">Keyframe based Motion Transfer</h3>
+<p>We extract point-track conditions from source videos to transfer complex motion patterns to new subjects defined by reference images. This process preserves the visual identity of the reference while faithfully reproducing the target dynamics.</p>
 <video><source src="./videos_motion_transfer/2865340-uhd_3840_2160_30fps.mp4" type="video/mp4" /></video>
 <video><source src="./videos_motion_transfer/4919748-uhd_4096_2160_25fps.mp4" type="video/mp4" /></video>
 <video><source src="./videos_motion_transfer/7520246-hd_1920_1080_24fps.mp4" type="video/mp4" /></video>
 <video><source src="./videos_motion_transfer/7678714-uhd_3840_2160_25fps.mp4" type="video/mp4" /></video>
 <video><source src="./videos_motion_transfer/9489172-uhd_4096_2160_25fps.mp4" type="video/mp4" /></video>
 <video><source src="./videos_motion_transfer/9631907-uhd_4096_2160_24fps.mp4" type="video/mp4" /></video>
-<h3 id="">Results in 720p</h3>
-<p>By fine-tuning our 14B parameter model on 65K high-quality real-world videos, we successfully scaled our generation capabilities to 720P. These results demonstrate that TrackR2V maintains precise motion controllability and high visual fidelity even at significantly higher resolutions.</p>
-<video><source src="./720P_motion_transfer/2865340-uhd_3840_2160_30fps.mp4" type="video/mp4" /></video>
-<video><source src="./720P_motion_transfer/7678714-uhd_3840_2160_25fps.mp4" type="video/mp4" /></video>
-<video><source src="./720P_motion_transfer/9489172-uhd_4096_2160_25fps.mp4" type="video/mp4" /></video>
-<video><source src="./720P_motion_transfer/9631907-uhd_4096_2160_24fps.mp4" type="video/mp4" /></video>
+<h3 id="">Track-level object editing</h3>
+<p>Our flexible problem formulation allows track-level object editing such as recompositing, removal, and replacement as follows.</p>
+<p><b>Recomposition of human and background:</b></p>
+<p>By separating foreground human from background, our model allows to preserve both human and background appearence and motions with just three reference iamges</p>
+<video><source src="./lady/recon.mp4" type="video/mp4" /></video>
+<p><b>Removal of human</b></p>
+<p>By removing point-tracks and reference image associated with human, we can obtain a video of background.</p>
+<video><source src="./lady/remove.mp4" type="video/mp4" /></video>
+<p><b>Appearence replacement</b></p>
+<p>By matching keypoints of human body between original human and reference human, we can replace the appearence of human in the video.</p>
+<video><source src="./lady/rep.mp4" type="video/mp4" /></video>
+<h3 id="">Mesh-based Stylization</h3>
+<p>By combining stylized keyframes with point tracks derived from mesh vertices, our model can render 3D animations in novel artistic styles. This ensures the generated video strictly adheres to the underlying geometry and animation of the original mesh while applying consistent visual themes.</p>
+<video><source src="./videos_mesh/pour.mp4" type="video/mp4" /></video>
+<video><source src="./videos_mesh/pour_orbit.mp4" type="video/mp4" /></video>
+<video><source src="./videos_mesh/test_hug.mp4" type="video/mp4" /></video>
+<h3 id="">Static Scene (Bullet Time) Camera Control</h3>
+<p>Go-with-the-Track enables precise camera retargeting and novel view synthesis by projecting reconstructed points onto target trajectories. We support complex camera movements, including spirals and smooth view interpolations, using just sparse image inputs and point cloud reconstructions. Beyond static environments, our framework handles camera retargeting within dynamic scenes containing independently moving objects. By leveraging robust point-track conditions, we maintain temporal coherence between the shifting camera perspective and the dynamic elements of the scene.</p>
+<video><source src="./camera_First/2795731-uhd_3840_2160_25fps.mp4" type="video/mp4" /></video>
+<video><source src="./camera_First/7041992-uhd_3840_2160_24fps.mp4" type="video/mp4" /></video>
+<video><source src="./camera_custom_sig/10464561.mp4" type="video/mp4" /></video>
+<video><source src="./camera_custom_sig/10652887.mp4" type="video/mp4" /></video>
+<video><source src="./camera_custom_sig/11717259.mp4" type="video/mp4" /></video>
+<video><source src="./camera_custom_sig/2865340-uhd_3840_2160_30fps.mp4" type="video/mp4" /></video>
+<video><source src="./camera_custom_sig/5379129-uhd_4096_2160_25fps.mp4" type="video/mp4" /></video>
+<video><source src="./camera_custom_sig/longboard.mp4" type="video/mp4" /></video>
+<video><source src="./camera_custom_sig/Pexels_fitness_0.mp4" type="video/mp4" /></video>
+<video><source src="./camera_custom_sig/Pexels_fitness_6.mp4" type="video/mp4" /></video>
+<video><source src="./camera_custom_sig/Pexels_other_transportation_11.mp4" type="video/mp4" /></video>
+<video><source src="./camera_custom_sig/Pexels_other_transportation_14.mp4" type="video/mp4" /></video>
+<video><source src="./camera_custom_sig/Pexels_outdoor_activities_18.mp4" type="video/mp4" /></video>
+<video><source src="./camera_custom_sig/Pexels_singing_3.mp4" type="video/mp4" /></video>
+<video><source src="./camera_custom_sig/Pexels_skateboard_1.mp4" type="video/mp4" /></video>
+<video><source src="./camera_custom_sig/Pexels_swimming_9.mp4" type="video/mp4" /></video>
+<video><source src="./camera_custom_sig/tractor-sand.mp4" type="video/mp4" /></video>
+<video><source src="./camera_custom_sig/tuk-tuk.mp4" type="video/mp4" /></video>
+<video><source src="./camera_custom_sig/varanus-cage.mp4" type="video/mp4" /></video>
+<video><source src="./static_z/blue_car_spiral.mp4" type="video/mp4" /></video>
+<video><source src="./static_z/eth_zoom_out.mp4" type="video/mp4" /></video>
+<video><source src="./static_z/lily_dragon_spiral.mp4" type="video/mp4" /></video>
+<video><source src="./static_z/meeting_room_zoom_in_30_fov.mp4" type="video/mp4" /></video>
+<video><source src="./static_z/nature_1_rotate_360.mp4" type="video/mp4" /></video>
+<video><source src="./static_z/nature_2_rotate_360.mp4" type="video/mp4" /></video>
+<video><source src="./static_z/nature_3_rotate_360.mp4" type="video/mp4" /></video>
+<video><source src="./static_z/vid2sim_interpolate.mp4" type="video/mp4" /></video>
+<video><source src="./static_z/vid2sim_single.mp4" type="video/mp4" /></video>
+<h3 id="">Dynamic Scene Camera Control</h3>
+<p>Beyond static scene (Bullet Time) video generation, our framework handles camera retargeting within dynamic scenes containing independently moving objects. By leveraging robust point-track conditions, we maintain temporal coherence between the shifting camera perspective and the dynamic elements of the scene.</p>
+<video><source src="./camera_dynamic/7041992-uhd_3840_2160_24fps.mp4" type="video/mp4" /></video>
+<video><source src="./davis_dynamic/bear.mp4" type="video/mp4" /></video>
+<video><source src="./davis_dynamic/breakdance-flare.mp4" type="video/mp4" /></video>
+<video><source src="./davis_dynamic/camel.mp4" type="video/mp4" /></video>
+<video><source src="./davis_dynamic/drift-straight.mp4" type="video/mp4" /></video>
+<video><source src="./davis_dynamic/soapbox.mp4" type="video/mp4" /></video>
+<h3 id="">Temporal Stabilization</h3>
+<p>We address temporal flickering in inverse rendering tasks by propagating albedo and shading estimates from keyframes to the full sequence. TrackR2V ensures smooth, temporally consistent material properties across frames, effectively smoothing out the jitter often seen in per-frame estimation methods.</p>
+<video><source src="./videos_jul/13470978_1280_720_24fps_albedo_Ref2.mp4" type="video/mp4" /></video>
+<video><source src="./videos_jul/3135811-hd_1280_720_24fps_albedo_Ref2.mp4" type="video/mp4" /></video>
+<video><source src="./videos_jul/3326746-hd_1280_720_24fps_albedo_Ref2.mp4" type="video/mp4" /></video>
+<video><source src="./videos_jul/3327058-hd_1280_720_24fps_albedo_Ref2.mp4" type="video/mp4" /></video>
+<video><source src="./videos_jul/3327058-hd_1280_720_24fps_lighting_Ref2.mp4" type="video/mp4" /></video>
+<video><source src="./videos_jul/3770033-hd_1280_720_25fps_albedo_Ref2.mp4" type="video/mp4" /></video>
+<video><source src="./videos_jul/3770033-hd_1280_720_25fps_lighting_Ref2.mp4" type="video/mp4" /></video>
+<video><source src="./videos_jul/7578544-hd_1280_720_30fps_albedo_Ref2.mp4" type="video/mp4" /></video>
+<video><source src="./videos_jul/7578544-hd_1280_720_30fps_lighting_Ref2.mp4" type="video/mp4" /></video>
 <h3 id="">Comparison to baselines</h3>
 <p>Compared to state-of-the-art methods like ATI, DiffusionAsShader, and Tora, TrackR2V demonstrates superior structural integrity and motion following. Our model significantly reduces artifacts and better preserves subject identity, particularly in challenging scenarios involving occlusions, as validated by user studies.</p>
 <video><source src="./baselines/2795749-uhd_3840_2160_25fps_1.mp4" type="video/mp4" /></video>
@@ -133,75 +192,6 @@
 <video><source src="./baselines/9489172-uhd_4096_2160_25fps_1.mp4" type="video/mp4" /></video>
 <video><source src="./baselines/9489172-uhd_4096_2160_25fps_3.mp4" type="video/mp4" /></video>
 <video><source src="./baselines/9631907-uhd_4096_2160_24fps_8.mp4" type="video/mp4" /></video>
-<h3 id="">Mesh-based Stylization</h3>
-<p>By combining stylized keyframes with point tracks derived from mesh vertices, our model can render 3D animations in novel artistic styles. This ensures the generated video strictly adheres to the underlying geometry and animation of the original mesh while applying consistent visual themes.</p>
-<video><source src="./videos_mesh/pour.mp4" type="video/mp4" /></video>
-<video><source src="./videos_mesh/pour_orbit.mp4" type="video/mp4" /></video>
-<video><source src="./videos_mesh/test_hug.mp4" type="video/mp4" /></video>
-<h3 id="">Camera Control</h3>
-<p>TrackR2V enables precise camera retargeting and novel view synthesis by projecting reconstructed points onto target trajectories. We support complex camera movements, including spirals and smooth view interpolations, using just sparse image inputs and point cloud reconstructions. Beyond static environments, our framework handles camera retargeting within dynamic scenes containing independently moving objects. By leveraging robust point-track conditions, we maintain temporal coherence between the shifting camera perspective and the dynamic elements of the scene.</p>
-<video><source src="./camera_First/2795731-uhd_3840_2160_25fps.mp4" type="video/mp4" /></video>
-<video><source src="./camera_First/2873755-uhd_3840_2160_25fps.mp4" type="video/mp4" /></video>
-<video><source src="./camera_First/7041992-uhd_3840_2160_24fps.mp4" type="video/mp4" /></video>
-<video><source src="./camera_First/nature_1_rotate.mp4" type="video/mp4" /></video>
-<video><source src="./camera_First/vid2sim.mp4" type="video/mp4" /></video>
-<video><source src="./camera_custom_sig/10464561_ArcLeft.mp4" type="video/mp4" /></video>
-<video><source src="./camera_custom_sig/10464561_Backward.mp4" type="video/mp4" /></video>
-<video><source src="./camera_custom_sig/10464561_HeroReveal.mp4" type="video/mp4" /></video>
-<video><source src="./camera_custom_sig/10464561_RotRight.mp4" type="video/mp4" /></video>
-<video><source src="./camera_custom_sig/10464561_spiral1.mp4" type="video/mp4" /></video>
-<video><source src="./camera_custom_sig/10464561_UpForward.mp4" type="video/mp4" /></video>
-<video><source src="./camera_custom_sig/10652887_Backward.mp4" type="video/mp4" /></video>
-<video><source src="./camera_custom_sig/10652887_HeroReveal.mp4" type="video/mp4" /></video>
-<video><source src="./camera_custom_sig/10652887_spiral1.mp4" type="video/mp4" /></video>
-<video><source src="./camera_custom_sig/10652887_UpForward.mp4" type="video/mp4" /></video>
-<video><source src="./camera_custom_sig/11717259_ArcLeft.mp4" type="video/mp4" /></video>
-<video><source src="./camera_custom_sig/11717259_Backward.mp4" type="video/mp4" /></video>
-<video><source src="./camera_custom_sig/11717259_HeroReveal.mp4" type="video/mp4" /></video>
-<video><source src="./camera_custom_sig/11717259_RotRight.mp4" type="video/mp4" /></video>
-<video><source src="./camera_custom_sig/11717259_spiral1.mp4" type="video/mp4" /></video>
-<video><source src="./camera_custom_sig/11717259_UpForward.mp4" type="video/mp4" /></video>
-<video><source src="./camera_custom_sig/2865340-uhd_3840_2160_30fps_Backward.mp4" type="video/mp4" /></video>
-<video><source src="./camera_custom_sig/2865340-uhd_3840_2160_30fps_HeroReveal.mp4" type="video/mp4" /></video>
-<video><source src="./camera_custom_sig/2865340-uhd_3840_2160_30fps_RotRight.mp4" type="video/mp4" /></video>
-<video><source src="./camera_custom_sig/2865340-uhd_3840_2160_30fps_spiral1.mp4" type="video/mp4" /></video>
-<video><source src="./camera_custom_sig/2865340-uhd_3840_2160_30fps_UpForward.mp4" type="video/mp4" /></video>
-<video><source src="./camera_custom_sig/5379129-uhd_4096_2160_25fps_Backward.mp4" type="video/mp4" /></video>
-<video><source src="./camera_custom_sig/5379129-uhd_4096_2160_25fps_HeroReveal.mp4" type="video/mp4" /></video>
-<video><source src="./camera_custom_sig/5379129-uhd_4096_2160_25fps_RotRight.mp4" type="video/mp4" /></video>
-<video><source src="./camera_custom_sig/5379129-uhd_4096_2160_25fps_UpForward.mp4" type="video/mp4" /></video>
-<video><source src="./camera_custom_sig/longboard_RotRight.mp4" type="video/mp4" /></video>
-<video><source src="./camera_custom_sig/Pexels_fitness_0_ArcLeft.mp4" type="video/mp4" /></video>
-<video><source src="./camera_custom_sig/Pexels_fitness_0_Backward.mp4" type="video/mp4" /></video>
-<video><source src="./camera_custom_sig/Pexels_fitness_0_HeroReveal.mp4" type="video/mp4" /></video>
-<video><source src="./camera_custom_sig/Pexels_fitness_0_RotRight.mp4" type="video/mp4" /></video>
-<video><source src="./static_z/blue_car_spiral.mp4" type="video/mp4" /></video>
-<video><source src="./static_z/eth_zoom_out.mp4" type="video/mp4" /></video>
-<video><source src="./static_z/lily_dragon_spiral.mp4" type="video/mp4" /></video>
-<video><source src="./static_z/meeting_room_zoom_in_30_fov.mp4" type="video/mp4" /></video>
-<video><source src="./static_z/nature_1_rotate_360.mp4" type="video/mp4" /></video>
-<video><source src="./static_z/nature_2_rotate_360.mp4" type="video/mp4" /></video>
-<video><source src="./static_z/nature_3_rotate_360.mp4" type="video/mp4" /></video>
-<video><source src="./static_z/vid2sim_interpolate.mp4" type="video/mp4" /></video>
-<video><source src="./static_z/vid2sim_single.mp4" type="video/mp4" /></video>
-<video><source src="./camera_dynamic/4880462-uhd_4096_2160_25fps.mp4" type="video/mp4" /></video>
-<video><source src="./camera_dynamic/4919748-uhd_4096_2160_25fps.mp4" type="video/mp4" /></video>
-<video><source src="./camera_dynamic/5637324-uhd_4096_2160_25fps.mp4" type="video/mp4" /></video>
-<video><source src="./camera_dynamic/7041992-uhd_3840_2160_24fps.mp4" type="video/mp4" /></video>
-<video><source src="./camera_dynamic/7320360-uhd_3840_2160_25fps.mp4" type="video/mp4" /></video>
-<video><source src="./camera_dynamic/9489172-uhd_4096_2160_25fps.mp4" type="video/mp4" /></video>
-<video><source src="./camera_dynamic/9631907-uhd_4096_2160_24fps.mp4" type="video/mp4" /></video>
-<h3 id="">Temporal Stabilization</h3>
-<p>We address temporal flickering in inverse rendering tasks by propagating albedo and shading estimates from keyframes to the full sequence. TrackR2V ensures smooth, temporally consistent material properties across frames, effectively smoothing out the jitter often seen in per-frame estimation methods.</p>
-<video><source src="./videos_jul/13470978_1280_720_24fps_albedo_Ref2.mp4" type="video/mp4" /></video>
-<video><source src="./videos_jul/3135811-hd_1280_720_24fps_albedo_Ref2.mp4" type="video/mp4" /></video>
-<video><source src="./videos_jul/3326746-hd_1280_720_24fps_albedo_Ref2.mp4" type="video/mp4" /></video>
-<video><source src="./videos_jul/3327058-hd_1280_720_24fps_albedo_Ref2.mp4" type="video/mp4" /></video>
-<video><source src="./videos_jul/3327058-hd_1280_720_24fps_lighting_Ref2.mp4" type="video/mp4" /></video>
-<video><source src="./videos_jul/3770033-hd_1280_720_25fps_albedo_Ref2.mp4" type="video/mp4" /></video>
-<video><source src="./videos_jul/3770033-hd_1280_720_25fps_lighting_Ref2.mp4" type="video/mp4" /></video>
-<video><source src="./videos_jul/7578544-hd_1280_720_30fps_albedo_Ref2.mp4" type="video/mp4" /></video>
-<video><source src="./videos_jul/7578544-hd_1280_720_30fps_lighting_Ref2.mp4" type="video/mp4" /></video>
 <h3 id="">Point Densification</h3>
 <p>We provide a visuals of the detected point tracks when using our iterative resampling technique (Algorithm 1) versus uniformly sampling of point queries in the space-time regions with point track queries. As evident, we see that our point tracks show much better coverage and less sparsity especially for objects that enter or exit in the middle of the scene.</p>
 <video><source src="./sampling_videos/0.mp4" type="video/mp4" /></video>
